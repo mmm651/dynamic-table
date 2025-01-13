@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 
 # Path to the Excel file
-EXCEL_FILE = 'data\\updated_data.xlsx'
+EXCEL_FILE = 'updated_data.xlsx'
 
 # Route to serve the homepage
 @app.route('/')
