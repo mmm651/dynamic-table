@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BENA-ART</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <style>
+        .actions-column {
+            text-align: center; /* Center align actions within the cell */
+        }
+        .highlight {
+    background-color: yellow !important;
+}
+    </style>
+    
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">MEMBERS</h1>
+
+        <!-- Buttons for Actions -->
+        <div class="mb-3" >
+            <button id="add-row" class="btn btn-primary me-2">Add Row</button>
+            <button id="add-column" class="btn btn-secondary">Add Column</button>
+            <button id="save-data" class="btn btn-success me-2">Save Changes</button>
+            <button id="highlight-row" class="btn btn-warning me-2">Highlight Row</button>
+            <button id="highlight-column"class="btn btn-warning me-2">Highlight Column</button>
+            <button id="highlight-cell"class="btn btn-warning me-2">Highlight Cell</button>
+            </div>
+
+        <!-- Table -->
+        <table class="table table-bordered">
+            <thead class="table-dark">
+                <!-- Buttons for column header actions -->
+<div class="mb-3">
+    <button id="rename-column" class="btn btn-warning me-2">Rename Column</button>
+    <button id="delete-column" class="btn btn-danger">Delete Column</button>
+</div>
+
+                <tr id="table-header">
+                    <!-- Headers will be populated dynamically -->
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <tr>
+                    <td colspan="100%" class="text-center">Loading data...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Fetch data from the backend
+            fetch('/data')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Data received:', data); // Debugging: Log the received data
+
+                    // Get references to the table elements
+                    const headerRow = document.getElementById('table-header');
+                    const body = document.getElementById('table-body');
+
+                    // Check if data exists
+                    if (data.length > 0) {
+                        // Clear any existing content
+                        headerRow.innerHTML = '';
+                        body.innerHTML = '';
+
+                        // Dynamically create table headers
+                        const headers = Object.keys(data[0]); // Get keys from the first row of data
+                        headers.push('Actions'); // Add an Actions column
+                        headers.forEach(header => {
+                            const th = document.createElement('th');
+                            th.textContent = header; // Set header text
+                            headerRow.appendChild(th);
+                        });
+
+                        // Dynamically populate table rows
+                        data.forEach((row, index) => {
+                            const tr = document.createElement('tr');
+                            headers.forEach(header => {
+                                const td = document.createElement('td');
+                                if (header === 'Actions') {
+                                    // Add action buttons
+                                    td.innerHTML = `
+                                        <button class="btn btn-warning btn-sm edit-btn" data-index="${index}">Edit</button>
+                                        <button class="btn btn-danger btn-sm delete-btn" data-index="${index}">Delete</button>
+                                        <button class="btn btn-info btn-sm duplicate-btn" data-index="${index}">Duplicate</button>
+                                    `;
+                                } else {
+                                    td.textContent = row[header] || ''; // Set cell content
+                                }
+                                tr.appendChild(td);
+                            });
+                            body.appendChild(tr);
+                        });
+                    } else {
+                        body.innerHTML = '<tr><td colspan="100%" class="text-center">No data available</td></tr>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+
+                    // Display an error message in the table body
+                    const body = document.getElementById('table-body');
+                    body.innerHTML = '<tr><td colspan="100%" class="text-center">Failed to load data</td></tr>';
+                });
+
+            // Add Row functionality
+            document.getElementById('add-row').addEventListener('click', () => {
+                const body = document.getElementById('table-body');
+                const newRow = document.createElement('tr');
+
+                // Get current headers
+                const headers = Array.from(document.getElementById('table-header').children).map(th => th.textContent);
+                headers.forEach(header => {
+                    const td = document.createElement('td');
+                    if (header === 'Actions') {
+                        td.innerHTML = `
+                            <button class="btn btn-warning btn-sm edit-btn">Edit</button>
+                            <button class="btn btn-danger btn-sm delete-btn">Delete</button>
+                            <button class="btn btn-info btn-sm duplicate-btn">Duplicate</button>
+                        `;
+                    } else {
+                        td.contentEditable = 'true'; // Make cells editable
+                    }
+                    newRow.appendChild(td);
+                });
+                body.appendChild(newRow);
+            });
+
+            // Add Column functionality
+document.getElementById('add-column').addEventListener('click', () => {
+    const headerRow = document.getElementById('table-header');
+    const body = document.getElementById('table-body');
+
+    // Prompt the user for the column name
+    const columnName = prompt('Enter a name for the new column:');
+    if (!columnName) {
+        alert('Column name cannot be empty!');
+        return;
+    }
+
+    // Add the new header with the custom name
+    const newHeader = document.createElement('th');
+    newHeader.textContent = columnName;
+    headerRow.insertBefore(newHeader, headerRow.children[headerRow.children.length - 1]); // Before Actions column
+
+    // Add cells to each row for the new column
+    Array.from(body.children).forEach(row => {
+        const newCell = document.createElement('td');
+        newCell.contentEditable = 'true'; // Make it editable
+        row.insertBefore(newCell, row.children[row.children.length - 1]); // Before Actions column
+    });
+});
+
+
+            // Delegate Edit, Delete, Duplicate actions
+            document.getElementById('table-body').addEventListener('click', event => {
+                if (event.target.classList.contains('edit-btn')) {
+                    // Enable editing of row cells
+                    const row = event.target.closest('tr');
+                    Array.from(row.children).forEach(cell => {
+                        if (!cell.querySelector('button')) {
+                            cell.contentEditable = 'true';
+                        }
+                    });
+                } else if (event.target.classList.contains('delete-btn')) {
+                    // Delete the row
+                    const row = event.target.closest('tr');
+                    row.remove();
+                } else if (event.target.classList.contains('duplicate-btn')) {
+                    // Duplicate the row
+                    const row = event.target.closest('tr');
+                    const clone = row.cloneNode(true);
+                    document.getElementById('table-body').appendChild(clone);
+                }
+            });
+        });
+        document.getElementById('save-data').addEventListener('click', () => {
+    const tableBody = document.getElementById('table-body');
+    const rows = Array.from(tableBody.children);
+
+    const data = rows.map(row => {
+        const cells = Array.from(row.children);
+        return cells.reduce((obj, cell, index) => {
+            const header = document.getElementById('table-header').children[index]?.textContent;
+            if (header !== 'Actions' && header) {
+                obj[header] = cell.textContent.trim();
+            }
+            return obj;
+        }, {});
+    });
+
+    
+    // Send data to the backend
+    fetch('/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(result => {
+        console.log(result.message); // Success message
+        alert('Data saved successfully!');
+    })
+    .catch(error => {
+        console.error('Error saving data:', error);
+        alert('Failed to save data.');
+    });
+});
+document.addEventListener('DOMContentLoaded', () => {
+
+     // Highlighting functionality
+    let selectedCell = null;
+
+   
+
+    // Highlight a row
+    const highlightRow = (row) => {
+        console.log(row); // Debugging: Check if the correct row is passed
+        clearHighlights();
+        row.classList.add('highlight');
+    };
+    const clearHighlights = () => {
+        document.querySelectorAll('.highlight').forEach(row => {
+            row.classList.remove('highlight');
+        });
+    };
+    // Highlight a column
+    const highlightColumn = (index) => {
+        clearHighlights();
+        const rows = document.querySelectorAll('#table-body tr');
+        rows.forEach(row => {
+            const cells = row.children;
+            if (cells[index]) {
+                cells[index].classList.add('highlight');
+            }
+        });
+    };
+
+    // Highlight a single cell
+    const highlightCell = (cell) => {
+        clearHighlights();
+        cell.classList.add('highlight');
+    };
+
+    // Track the currently selected cell
+    document.getElementById('table-body').addEventListener('click', (event) => {
+        const target = event.target;
+        if (target.tagName === 'TD' && !target.querySelector('button')) {
+            selectedCell = target; // Store the selected cell
+        }
+    });
+
+    // Highlight row button functionality
+    document.getElementById('highlight-row').addEventListener('click', () => {
+        if (selectedCell) {
+            highlightRow(selectedCell.parentElement);
+        } else {
+            alert('Please select a cell first!');
+        }
+    });
+
+    // Highlight column button functionality
+    document.getElementById('highlight-column').addEventListener('click', () => {
+        if (selectedCell) {
+            const columnIndex = Array.from(selectedCell.parentElement.children).indexOf(selectedCell);
+            highlightColumn(columnIndex);
+        } else {
+            alert('Please select a cell first!');
+        }
+    });
+
+    // Highlight cell button functionality
+    document.getElementById('highlight-cell').addEventListener('click', () => {
+        if (selectedCell) {
+            highlightCell(selectedCell);
+        } else {
+            alert('Please select a cell first!');
+        }
+    });
+    // Rename Column functionality
+    document.getElementById('rename-column').addEventListener('click', () => {
+        const headerRow = document.getElementById('table-header');
+        const headers = Array.from(headerRow.children).map(th => th.textContent);
+
+        // Prompt user to select a column to rename
+        const columnName = prompt(`Enter the name of the column to rename (${headers.join(', ')}):`);
+        if (!columnName || !headers.includes(columnName)) {
+            alert('Invalid column name!');
+            return;
+        }
+
+        // Prompt for the new column name
+        const newColumnName = prompt('Enter the new name for the column:');
+        if (!newColumnName) {
+            alert('Column name cannot be empty!');
+            return;
+        }
+
+        // Rename the column header
+        headers.forEach((header, index) => {
+            if (header === columnName) {
+                headerRow.children[index].textContent = newColumnName;
+            }
+        });
+    });
+
+    // Delete Column functionality
+    document.getElementById('delete-column').addEventListener('click', () => {
+        const headerRow = document.getElementById('table-header');
+        const headers = Array.from(headerRow.children).map(th => th.textContent);
+
+        // Prompt user to select a column to delete
+        const columnName = prompt(`Enter the name of the column to delete (${headers.join(', ')}):`);
+        if (!columnName || !headers.includes(columnName)) {
+            alert('Invalid column name!');
+            return;
+        }
+
+        // Find the index of the column to delete
+        let columnIndex = -1;
+        headers.forEach((header, index) => {
+            if (header === columnName) {
+                columnIndex = index;
+            }
+        });
+
+        if (columnIndex === -1) {
+            alert('Column not found!');
+            return;
+        }
+
+        // Remove the column header
+        headerRow.removeChild(headerRow.children[columnIndex]);
+
+        // Remove the column cells from each row
+        const rows = document.querySelectorAll('#table-body tr');
+        rows.forEach(row => {
+            if (row.children[columnIndex]) {
+                row.removeChild(row.children[columnIndex]);
+            }
+        });
+    });
+});
+
+
+    </script>
+</body>
+</html>
